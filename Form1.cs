@@ -1,151 +1,127 @@
-namespace MyFirstProject
-{
+using System;
+using System.Drawing;
+using System.Linq;
+using System.Windows.Forms;
+using System.Windows.Forms.DataVisualization.Charting;
 
+namespace WinFormsAssignmentTwoApp2
+{
     public partial class Form1 : Form
     {
-        private bool isPlayerX = true; // True for player 'X', False for player 'O'
-        private int turnCount = 0;     // Counts number of turns taken
-        private Button[,] buttons = new Button[3, 3]; // Initialize buttons as an empty array
+        private TextBox dataInputTextBox;
+        private Button generateButton;
+        private Chart barChart;
 
         public Form1()
         {
-            InitializeComponent();
-            InitializeGame();
+            InitializeComponent(); // Call method from Form1.Designer.cs
+            SetupForm();
         }
 
-        // This nitialize the game and set up buttons
-        private void InitializeGame()
+        private void SetupForm()
+
         {
-            buttons = new Button[3, 3] {
-                { button1, button2, button3 },
-                { button4, button5, button6 },
-                { button7, button8, button9 }
+
+            Panel textBoxPanel = new Panel
+            {
+                Location = new Point(100, 90),
+                Size = new Size(325, 30),
+                BackColor = Color.Green,
+                BorderStyle = BorderStyle.FixedSingle
             };
 
-            // This attaches the ButtonClick event handler to all the buttons
-            foreach (Button btn in buttons)
-            {
-                btn.Click += ButtonClick;
-            }
 
-            lblStatus.Text = "Player X's turn";
+
+            dataInputTextBox = new TextBox
+            {
+                Width = 300,
+                Location = new Point(5, 3), // padding
+                BorderStyle = BorderStyle.None,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                BackColor = Color.LightGray,
+                PlaceholderText = "Enter comma-separated integer values"
+            };
+
+
+            ///user input
+            textBoxPanel.Controls.Add(dataInputTextBox);
+            this.Controls.Add(textBoxPanel);
+
+            {
+                
+                generateButton = new Button { Text = "Generate Bar Chart", Location = new Point(450, 30) };
+                barChart = new Chart { Dock = DockStyle.Bottom, Height = 400 };
+
+                // Add controls to form
+                this.Controls.Add(generateButton);
+                this.Controls.Add(barChart);
+
+
+                //  event handler for  generate button
+                generateButton.Click += GenerateBarChart;
+            }
         }
 
-        // Handles the  button click event
-        private void ButtonClick(object? sender, EventArgs e)
+        private void GenerateBarChart(object sender, EventArgs e)
         {
-            Button? clickedButton = sender as Button;
-            if (clickedButton == null) return;
+            // Clear any existing series  data points in the chart
+            barChart.Series.Clear();
+            barChart.ChartAreas.Clear();
 
-            // Check if the button has already been clicked
-            if (clickedButton.Text != "")
-                return;
-
-            // Set the player's symbol (X or O)
-            clickedButton.Text = isPlayerX ? "X" : "O";
-            turnCount++;
-
-            if (CheckWinner())
+            // Read and parse user input for data
+            int[] numbers;
+            try
             {
-                lblStatus.Text = $"Player {(isPlayerX ? "X" : "O")} wins!";
-                DisableButtons();
+                numbers = dataInputTextBox.Text.Split(',').Select(int.Parse).ToArray();
+            }
+            catch
+            {
+                MessageBox.Show(" enter a  list of integer values separated by commas.");
                 return;
             }
 
-            // Check for a draw
-            if (turnCount == 9)
-            {
-                lblStatus.Text = "It's a draw!";
-                return;
-            }
+            //  chart area and series
+            ChartArea chartArea = new ChartArea("MainArea");
+            barChart.ChartAreas.Add(chartArea);
 
-            // Switch turns
-            isPlayerX = !isPlayerX;
-            lblStatus.Text = $"Player {(isPlayerX ? "X" : "O")}'s turn";
-        }
-
-        // Checks for a winner
-        private bool CheckWinner()
-        {
-            // This  function  compares three buttons for equal labels 'X' or 'O'
-            bool AreButtonsEqual(Button b1, Button b2, Button b3)
+            Series series = new Series
             {
-                return b1.Text != "" && b1.Text == b2.Text && b2.Text == b3.Text;
-            }
+                Name = "BarSeries",
+                ChartType = SeriesChartType.Bar, // horizontal bars
+                IsValueShownAsLabel = true // Show values on each bar
+            };
 
-            // Checks rows and columns
-            for (int i = 0; i < 3; i++)
+            // Bar WIDTH for spacing
+            series["PointWidth"] = "0.5";
+
+            //  array of distinct colors
+            Color[] colors = { Color.Red, Color.Orange, Color.Yellow, Color.Green, Color.Blue, Color.Purple, Color.Brown, Color.Black };
+
+            //   add data points to series
+            for (int i = 0; i < numbers.Length; i++)
             {
-                if (AreButtonsEqual(buttons[i, 0], buttons[i, 1], buttons[i, 2]) ||
-                    AreButtonsEqual(buttons[0, i], buttons[1, i], buttons[2, i]))
+                DataPoint dataPoint = new DataPoint
                 {
-                    return true;
-                }
+                    YValues = new double[] { numbers[i] },
+                    AxisLabel = " Data  " + (i + 1),
+                    Color = colors[i % colors.Length]
+                };
+
+                series.Points.Add(dataPoint);
             }
 
-            // Check diagonals
-            if (AreButtonsEqual(buttons[0, 0], buttons[1, 1], buttons[2, 2]) ||
-                AreButtonsEqual(buttons[0, 2], buttons[1, 1], buttons[2, 0]))
-            {
-                return true;
-            }
+            // Add the series data points  to the chart
+            barChart.Series.Add(series);
 
-            return false;
-        }
+            //  chart axes - minimum value for negative and positive numbers 
+            chartArea.AxisX.Minimum = Math.Min(0, numbers.Min());
+            chartArea.AxisX.Title = "Value";
+            chartArea.AxisY.Title = "Bars";
+            chartArea.AxisY.Interval = 1;
 
-        // Disable all buttons after the game ends
-        private void DisableButtons()
-        {
-            foreach (Button btn in buttons)
-            {
-                btn.Enabled = false;
-            }
-        }
-
-        // Resets the game
-        private void btnReset_Click(object sender, EventArgs e)
-        {
-            turnCount = 0;
-            isPlayerX = true;
-
-            foreach (Button btn in buttons)
-            {
-                btn.Text = "";
-                btn.Enabled = true;
-            }
-
-            lblStatus.Text = "Player X's turn";  // Resets the game labels 'X' or 'Y'
-        }
-
-        private void button4_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void button7_Click(object sender, EventArgs e)
-        {
-
-        }
-
-
-
-        private void button8_Click(object sender, EventArgs e)
-        {
-
-        }
-        private void button9_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void lblStatus_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void button5_Click(object sender, EventArgs e)
-        {
-
+            // apply new changes
+            barChart.Invalidate();
         }
     }
+
 }
